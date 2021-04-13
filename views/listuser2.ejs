@@ -12,33 +12,37 @@
         <h1>사용자 리스트</h1>
         <br>
             <table>
-                <tr><td>번호</td><td>아이디</td><td>이름</td><td>나이</td></tr>
-                <% if(userList != null && userList.length > 0){ %>
-                    <% for ( var i = 0; i < userList.length; i++){ %>
-                    <tr>
-                        <td><%=i%></td>
-                        <td><a href="/process_form/updateusers?id=<%=userList[i].id%>"><%=userList[i].id%></a></td>
-                        <td><%=userList[i].name%></td>
-                        <td><%=userList[i].age%></td>
-                    </tr>
+                <tr>
+                    <td>번호</td><td>아이디</td><td>이름</td><td>나이</td>
+                </tr>
+                <% if(userList !=null && userList.length > 0) { %>
+                    <% for(var i=0; i<userList.length; i++) { %>
+                        <tr>
+                            <td><%=i%></td>
+                            <td><a href="/process_form/updateusers?id=<%=userList[i].id%>"><%=userList[i].id%></a></td>
+                            <td><%=userList[i].name%></td>
+                            <td><%=userList[i].age%></td>
+                        </tr>
                     <% } %>
                 <% }else{ %>
-                    <td colspan="4">조회된 값이 없습니다.</td>
+                    <tr>
+                        <td colspan="4">조회된 데이터가 없습니다!!!</td>
+                    </tr>
                 <% } %>
             </table>
             <br>
-            <input type="button" value="사용자등록" id="btnadduser">
-            <input type="button" value="로그인" id="btnlogin">
-            <script>
-                //jQuery가 아닌 오리지널 자바스크리트 코드(아래)
-                var btnadduser = document.getElementById('btnadduser');
-                btnadduser.onclick = function() {
-                    location.replace('/public/adduser2.html');
-                }
-                var btnlogin = document.getElementById('btnlogin');
-                btnlogin.onclick = function() {
-                    location.replace('/public/login2.html');
-                }
-            </script>
+            <input type="button" value="사용자등록" id="btnAddUser">
+            <input type="button" value="로그인" id="btnLogin">
+        </form>
+        <script>
+            var btnAddUser = document.getElementById('btnAddUser');
+            var btnLogin = document.getElementById('btnLogin');
+            btnAddUser.onclick = function() {
+                location.replace('/public/adduser2.html');
+            }
+            btnLogin.onclick = function() {
+                location.replace('/public/login2.html');
+            }
+        </script>
     </body>
 </html>

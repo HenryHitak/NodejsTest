@@ -25,7 +25,7 @@ var mysql = require('mysql');
 
 // Mysql 데이터베이스 연결 설정
 var pool = mysql.createPool({
-    connectionLimit:5,
+    connectionLimit:10,
     host:'localhost',
     user:'root',
     password:'apmsetup',
@@ -56,14 +56,17 @@ if(pool) {
     pool.getConnection(function(err,conn){
         if(err) {
             console.log("데이버베이스 pool에러");
-            if(conn) { conn.release(); }
+            if(conn) {
+                console.log("conn 해제");
+                conn.release();//연결이 있다면 해제;
+            }
             return;
         }
         conn.query("select * from users");
         conn.release();
         conn.on('error',function(err){
             console.log('데이터베이스 연결 시 에러가 발생했습니다.');
-            //console.dir(err);
+            console.dir(err);
             return;
         });
         console.log('데이터베이스 연결이 정상 입니다.');
@@ -73,12 +76,11 @@ if(pool) {
 // 라우팅 시작(URL매핑 스프링의 컨트롤러)
 var router = express.Router(); //URL매핑 객체생성
 
-// 초기페이지 연결
+// 초기페이지 연결 - html출력에서 /process/listuser -> ejs 템플릿 뷰로 변경
 router.route('/').get(function(req,res){
     //res.status(200);
     //res.sendFile(path.join(__dirname,'public','listuser2.html'));
     console.log('/ 호출됨');
-    //기술참조: https://junspapa-itdev.tistory.com/9
     if(pool) {
         allUser(function(err, result){
             if(err) {
@@ -90,9 +92,9 @@ router.route('/').get(function(req,res){
                 res.end();
                 return;
             }
-            //console.dir(result);
+            console.dir(result);
             //사용자리스트를 브라우저화면에 뿌려줌
-            res.render(__dirname +'/views/listuser2', {userList : result} );
+            res.render(__dirname + '/views/listuser2', {userList:result});
         });
     }else{
         //pool이 false일때
@@ -106,7 +108,7 @@ router.route('/process/deleteuser').post(function(req,res) {
     if(pool) {
         pool.getConnection(function(err, conn) {
             if(err) {
-                if(conn) { conn.release(); }
+                conn.release();
                 res.writeHead('200',{'Content-Type':'text/html;charset=utf8'});
                 res.write(err.stack);
                 res.end();
@@ -118,7 +120,7 @@ router.route('/process/deleteuser').post(function(req,res) {
                     conn.release();
                     console.log("디버그: 삭제쿼리 확인 " + exec.sql);
                     if(err) {
-                        if(conn) { conn.release(); }
+                        conn.release();
                         res.writeHead('200',{'Content-Type':'text/html;charset=utf8'});
                         res.write(err.stack);
                         res.end();
@@ -143,7 +145,7 @@ router.route('/process/updateuser').post(function(req,res) {
     if(pool) {
         pool.getConnection(function(err, conn) {
             if(err) {
-                if(conn) { conn.release(); }
+                conn.release();
                 res.writeHead('200',{'Content-Type':'text/html;charset=utf8'});
                 res.write(err.stack);
                 res.end();
@@ -183,6 +185,7 @@ router.route('/process/updateuser').post(function(req,res) {
 });
 // 뷰페이지 연결(업데이트페이지와 같음)
 router.route('/process_form/updateusers').get(function(req,res){
+    var jsonData;//html로 보낼 객체 생성
     if(pool) {
         //console.log("디버그 id = "+ req.query.id);
         viewUser(req.query.id, function(err, result){
@@ -193,11 +196,11 @@ router.route('/process_form/updateusers').get(function(req,res){
                 res.write(err.stack);
                 res.end();
             }
-            if(result) {
-                //console.log(result);
+            if(result[0]) {
+                console.log(result[0]);
                 //jsonData = JSON.stringify(result[0]); //객체를 Json데이터로 변경필요X
                 //console.log("디버그 jsonData: "+ jsonData);
-                res.render(__dirname +'/views/updateuser2', {resultView:result} );
+                res.render(__dirname +'/views/updateuser2', result[0] );
             }else{
                 res.writeHead('200',{'Content-Type':'text/html;charset=utf8'});
                 res.write('<script>alert("조회된 값이 없습니다.");history.back();</script>');
@@ -221,21 +224,19 @@ var viewUser = function(id, callback) {
             if(err) {
                 console.log(exec.sql);
                 callback(err, null);
-                return;
             }
             if(rows) {
-                //console.log(rows);
+                console.log(rows);
                 callback(null, rows);
-                return;
             }else{
                 callback(null, null);
-                return;
             }
         });
     });    
 }
 
-// 리스트사용자페이지 연결 - 사용하지 않음 라우터 / 로 대체
+// 아래 리스트를 [/] 라우터로 대체 합니다.
+// 리스트사용자페이지 연결- 이 라우터를 사용하지 않고, ejs뷰템플릿을 사용
 router.route('/process/listuser').get(function(req,res){
     console.log('/process/listuser 호출됨');
     if(pool) {
@@ -250,7 +251,7 @@ router.route('/process/listuser').get(function(req,res){
                 return;
             }
             if(result) {
-                //console.dir(result);
+                console.dir(result);
                 //사용자리스트를 브라우저화면에 뿌려줌
                 res.writeHead('200',{'Content-Type':'text/html;charset=utf8'});
                 res.write('<style>table{border:1px solid black;border-collapse:collapse} td{border:1px solid black;padding:10px;}</style>');
@@ -284,7 +285,9 @@ var allUser = function(callback) { //function(err, result){}
     console.log('allUser함수형변수가 호출됨: ');
     pool.getConnection(function(err, conn){
       if(err) {
-        if(conn) { conn.release(); }
+          if(conn) {
+              conn.release();//기존커넥션을 연결해제.
+          }
           callback(err, null);
           return;
       }  
@@ -293,23 +296,20 @@ var allUser = function(callback) { //function(err, result){}
       var tablename = 'users';
       //SQL문을 실행 preparedStatement 미리정의된 SQL문
       var exec = conn.query("select ?? from ??",[columns,tablename],function(err,rows){
-        conn.release();
+        conn.release();//연결해제.
         console.log('실행 대상 SQL : '+ exec.sql);
         if(rows.length > 0) {
             console.log('사용자 리스트 있음');
             callback(null, rows);//result변수에 들어가는 값이됨.
-            return;
         }else{
             console.log('사용자 리스트 없음.');
             callback(null,null);
-            return;
         }
       });
       conn.on('error', function(err){
           console('데이터베이스 쿼리 에러가 발생 되었습니다.');
-          //console.dir(err);
+          console.dir(err);
           callback(err,null);
-          return;
       });
     });
 };
@@ -335,7 +335,7 @@ router.route('/process/adduser').post(function(req,res){
                 return;
             }
             if(result) {
-                //console.dir(result);
+                console.dir(result);
                 res.writeHead('200',{'Content-Type':'text/html;charset=utf8'});
                 res.write('<h2>사용자 추가 성공</h2>');
                 res.write('<br><a href="/">사용자리스트</a>');
@@ -356,7 +356,9 @@ var addUser = function(id, name, age, password, callback) {
     console.log('addUser함수형변수가 호출됨 : ');
     pool.getConnection(function(err, conn){
         if(err) {
-            if(conn) { conn.release(); }
+            if(conn) {
+                conn.release();//에러시 DB커넥션 해제
+            }
             callback(err, null);
             return;
         }
@@ -367,14 +369,12 @@ var addUser = function(id, name, age, password, callback) {
             conn.release();
             console.log('SQL구문 확인: '+exec.sql);
             if(err) {
-                if(conn) { conn.release(); }
                 console.log('쿼리 에러발생');
-                //console.dir(err);
+                console.dir(err);
                 callback(err, null);
                 return;
             }
             callback(null, result);
-            return;
         });
     });
 }
@@ -395,7 +395,7 @@ router.route('/process/login').post(function(req,res){
                 res.end();
             }
             if(result) {
-                //console.dir(result);
+                console.dir(result);
                 res.writeHead('200',{'Content-Type':'text/html;charset=utf8'});
                 res.write('<h1>로그인 성공</h1>');
                 res.write('<div><p>사용자 아이디: '+ result[0].id +'</p></div>');
@@ -417,7 +417,9 @@ var authUser = function(id, password, callback) {
     console.log('authUser 함수형변수 호출: ');
     pool.getConnection(function(err, conn){
         if(err) {
-            if(conn) { conn.release(); }
+            if(conn) {
+                conn.release();//에러발생시 기존 커넥션 해제
+            }
             callback(err, null);
             return;
         }
@@ -425,16 +427,14 @@ var authUser = function(id, password, callback) {
         var tablename = 'users';
         //SQL 조회쿼리실행
         var exec = conn.query("select ?? from ?? where id = ? and password = ?",[columns,tablename,id,password], function(err, rows) {
-            conn.release();
+            conn.release();//쿼리실행 후 커넥션 해제
             console.log('쿼리 명령어 : '+ exec.sql);
             if(rows.length>0) {
                 console.log('아이디' + id +', 패스워드 [%s]가 일치하는 사용자 찾음', password);
                 callback(null, rows);
-                return;
             }else{
                 console.log('일치하는 사용자를 찾지 못했습니다.');
                 callback(null, null);
-                return;
             }
         });
     });
